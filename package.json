@@ -1,0 +1,22 @@
+{
+  "name": "spidermini",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dp": "wrangler deploy",
+    "d": "wrangler dev",
+    "b": "wrangler types && biome format --write .",
+    "f": "biome format --write .",
+    "l": "biome lint --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.0.5",
+    "@types/node": "24.0.4",
+    "typescript": "5.8.3",
+    "wrangler": "^4.22.0"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.0.1",
+    "postgres": "3.4.7"
+  }
+}
