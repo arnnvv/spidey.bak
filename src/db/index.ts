@@ -1,10 +1,7 @@
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
 
-let db: NeonQueryFunction<false, false> | undefined;
+export function getDatabase(connectionString: string): Pool {
+  const pool = new Pool({ connectionString });
 
-export function getDatabase(
-  connectionString: string,
-): NeonQueryFunction<false, false> {
-  db = neon(connectionString);
-  return db;
+  return pool;
 }

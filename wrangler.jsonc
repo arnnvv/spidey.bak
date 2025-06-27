@@ -6,11 +6,5 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
-  },
-  "hyperdrive": [
-    {
-      "binding": "HYPERDRIVE",
-      "id": "7eb094223cff476b8d79b6d751c600b4"
-    }
-  ]
+  }
 }

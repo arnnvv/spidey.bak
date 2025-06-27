@@ -3,7 +3,7 @@ import { readRequestBody } from "./bodyparse";
 import { getDatabase } from "./db";
 
 export default {
-  async fetch(request, env, _ctx): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/") {
       return new Response("Not found", {
         status: 404,
@@ -30,15 +30,15 @@ export default {
     if (!isValidHttpUrl(body.url)) {
       return new Response("URL not valid");
     }
+    const pool = getDatabase(env.DB);
 
     try {
-      const db = getDatabase(env.DB);
+      const existingUrl = await pool.query({
+        text: "SELECT * FROM urls WHERE url = $1",
+        values: [body.url],
+      });
 
-      const existingUrl = await db`
-        SELECT * FROM urls WHERE url = ${body.url}
-      `;
-
-      if (existingUrl.length > 0) {
+      if (existingUrl.rows.length > 0) {
         return new Response(
           JSON.stringify({
             message: "URL already exists",
@@ -53,16 +53,15 @@ export default {
         );
       }
 
-      const insertResult = await db`
-        INSERT INTO urls (url)
-        VALUES (${body.url})
-        RETURNING *
-      `;
+      const insertResult = await pool.query({
+        text: "INSERT INTO urls (url) VALUES ($1) RETURNING *",
+        values: [body.url],
+      });
 
       return new Response(
         JSON.stringify({
           message: "URL inserted successfully",
-          data: insertResult[0],
+          data: insertResult.rows[0],
         }),
         {
           status: 201,
@@ -85,6 +84,8 @@ export default {
           },
         },
       );
+    } finally {
+      ctx.waitUntil(pool.end());
     }
   },
 } satisfies ExportedHandler<Env>;
