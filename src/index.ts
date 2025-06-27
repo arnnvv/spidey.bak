@@ -3,6 +3,8 @@ import { readRequestBody } from "./bodyparse";
 import { getDatabase } from "./db";
 import { crawl } from "./crawller";
 
+const BATCH_SIZE = 5;
+
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     if (request.method !== "POST" || new URL(request.url).pathname !== "/") {
@@ -92,6 +94,30 @@ export default {
           },
         },
       );
+    }
+  },
+
+  async scheduled(_controller, env, ctx): Promise<void> {
+    console.log("Cron trigger received. Looking for pending URLs...");
+    const pool = getDatabase(env.DB);
+    try {
+      const { rows } = await pool.query<{
+        url: string;
+      }>("SELECT url FROM urls WHERE status = 'pending' LIMIT $1", [
+        BATCH_SIZE,
+      ]);
+
+      if (rows.length === 0) {
+        console.log("No pending URLs to crawl.");
+        return;
+      }
+
+      console.log(`Found ${rows.length} URLs to crawl.`);
+
+      const crawlPromises = rows.map((row) => crawl(row.url, pool));
+      ctx.waitUntil(Promise.all(crawlPromises));
+    } catch (error) {
+      console.error("Cron handler failed:", error);
     }
   },
 } satisfies ExportedHandler<Env>;
