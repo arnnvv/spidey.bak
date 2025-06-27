@@ -16,7 +16,6 @@
     "wrangler": "^4.22.0"
   },
   "dependencies": {
-    "@neondatabase/serverless": "1.0.1",
-    "postgres": "3.4.7"
+    "@neondatabase/serverless": "1.0.1"
   }
 }

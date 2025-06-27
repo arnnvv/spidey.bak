@@ -1,16 +1,10 @@
-import postgres, { Sql } from "postgres";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-let db: Sql | null = null;
+let db: NeonQueryFunction<false, false> | undefined;
 
-export function getDatabase(connectionString: string): Sql {
-  if (!db) {
-    db = postgres(connectionString, {
-      ssl: "require",
-      connect_timeout: 30,
-      idle_timeout: 20,
-      max_lifetime: 60 * 30,
-    });
-  }
-
+export function getDatabase(
+  connectionString: string,
+): NeonQueryFunction<false, false> {
+  db = neon(connectionString);
   return db;
 }

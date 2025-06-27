@@ -34,15 +34,57 @@ export default {
     try {
       const db = getDatabase(env.DB);
 
-      const result = await db`select * from urls;`;
+      const existingUrl = await db`
+        SELECT * FROM urls WHERE url = ${body.url}
+      `;
 
-      return new Response(JSON.stringify(result));
+      if (existingUrl.length > 0) {
+        return new Response(
+          JSON.stringify({
+            message: "URL already exists",
+            url: body.url,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+      }
+
+      const insertResult = await db`
+        INSERT INTO urls (url)
+        VALUES (${body.url})
+        RETURNING *
+      `;
+
+      return new Response(
+        JSON.stringify({
+          message: "URL inserted successfully",
+          data: insertResult[0],
+        }),
+        {
+          status: 201,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
     } catch (error) {
       console.error("Database query failed:", error);
 
-      return new Response("Internal Server Error", {
-        status: 500,
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal Server Error",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
     }
   },
 } satisfies ExportedHandler<Env>;
