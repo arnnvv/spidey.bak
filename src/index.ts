@@ -1,6 +1,7 @@
 import { isValidHttpUrl } from "./validate";
 import { readRequestBody } from "./bodyparse";
 import { getDatabase } from "./db";
+import { crawl } from "./crawller";
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -9,9 +10,24 @@ export default {
         status: 404,
       });
     }
-    const bodyString = await readRequestBody(request);
 
-    const body = JSON.parse(bodyString);
+    let body;
+    try {
+      const bodyString = await readRequestBody(request);
+      body = JSON.parse(bodyString);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid request body",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }
 
     if (!body.hasOwnProperty("url")) {
       return new Response(
@@ -27,52 +43,44 @@ export default {
       );
     }
 
-    if (!isValidHttpUrl(body.url)) {
-      return new Response("URL not valid");
+    const seedUrl = body.url;
+    if (!isValidHttpUrl(seedUrl)) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid URL provided",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
     }
     const pool = getDatabase(env.DB);
 
     try {
-      const existingUrl = await pool.query({
-        text: "SELECT * FROM urls WHERE url = $1",
-        values: [body.url],
-      });
+      await pool.query(
+        "INSERT INTO urls (url, status) VALUES ($1, 'pending') ON CONFLICT (url) DO NOTHING",
+        [seedUrl],
+      );
 
-      if (existingUrl.rows.length > 0) {
-        return new Response(
-          JSON.stringify({
-            message: "URL already exists",
-            url: body.url,
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        );
-      }
-
-      const insertResult = await pool.query({
-        text: "INSERT INTO urls (url) VALUES ($1) RETURNING *",
-        values: [body.url],
-      });
+      ctx.waitUntil(crawl(seedUrl, pool));
 
       return new Response(
         JSON.stringify({
-          message: "URL inserted successfully",
-          data: insertResult.rows[0],
+          message: "URL accepted for crawling.",
+          url: seedUrl,
         }),
         {
-          status: 201,
+          status: 202,
           headers: {
             "Content-Type": "application/json",
           },
         },
       );
     } catch (error) {
-      console.error("Database query failed:", error);
-
+      console.error("Database or initial processing error:", error);
       return new Response(
         JSON.stringify({
           error: "Internal Server Error",
@@ -84,8 +92,6 @@ export default {
           },
         },
       );
-    } finally {
-      ctx.waitUntil(pool.end());
     }
   },
 } satisfies ExportedHandler<Env>;
