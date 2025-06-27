@@ -114,8 +114,13 @@ export default {
 
       console.log(`Found ${rows.length} URLs to crawl.`);
 
-      const crawlPromises = rows.map((row) => crawl(row.url, pool));
-      ctx.waitUntil(Promise.all(crawlPromises));
+      ctx.waitUntil(
+        (async () => {
+          for (const row of rows) {
+            await crawl(row.url, pool);
+          }
+        })(),
+      );
     } catch (error) {
       console.error("Cron handler failed:", error);
     }
