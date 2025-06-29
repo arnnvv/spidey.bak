@@ -170,3 +170,6 @@ dist
 
 .dev.vars
 .wrangler/
+model/__pycache__
+model/src/__pycache__
+model/outputs/
