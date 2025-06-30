@@ -31,7 +31,7 @@ ID_TO_LABEL = {v: k for k, v in LABEL_MAPPING.items()}
 # --- Model Training Parameters ---
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
-MAX_FEATURES = 5000
+MAX_FEATURES = 8000
 NGRAM_RANGE = (1, 2)
 
 # --- LightGBM model parameters ---
