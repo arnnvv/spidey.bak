@@ -43,12 +43,58 @@ class LinkHandler {
   }
 }
 
-export async function crawl(url: string, pool: Pool) {
+interface ModelResponse {
+  prediction: string;
+  confidence: number;
+}
+
+export async function crawl(url: string, pool: Pool, modelApiUrl: string) {
   try {
     await pool.query(
-      "UPDATE urls SET status = 'crawling', error_message = NULL WHERE url = $1",
+      "UPDATE urls SET status = 'classifying', error_message = NULL WHERE url = $1",
       [url],
     );
+
+    console.log(`Classifying URL: ${url}`);
+    const modelResponse = await fetch(`${modelApiUrl}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!modelResponse.ok) {
+      const errorText = await modelResponse.text();
+      throw new Error(
+        `Model API request failed with status ${modelResponse.status}: ${errorText}`,
+      );
+    }
+
+    const { prediction, confidence } =
+      (await modelResponse.json()) as ModelResponse;
+    console.log(
+      `URL ${url} classified as ${prediction} with confidence ${confidence}`,
+    );
+
+    await pool.query(
+      "UPDATE urls SET classification = $2, confidence = $3 WHERE url = $1",
+      [url, prediction, confidence],
+    );
+
+    if (prediction.toUpperCase() !== "PERSONAL_BLOG") {
+      console.log(`Skipping crawl for ${url}, not a personal blog.`);
+      await pool.query("UPDATE urls SET status = 'skipped' WHERE url = $1", [
+        url,
+      ]);
+      return;
+    }
+
+    console.log(`Proceeding to crawl ${url}.`);
+    await pool.query("UPDATE urls SET status = 'crawling' WHERE url = $1", [
+      url,
+    ]);
 
     const response = await fetch(url, {
       headers: {
@@ -110,7 +156,7 @@ export async function crawl(url: string, pool: Pool) {
 
     console.log(`Successfully crawled: ${url}`);
   } catch (error: any) {
-    console.error(`Failed to crawl ${url}:`, error.message);
+    console.error(`Failed to process ${url}:`, error.message);
     await pool.query(
       "UPDATE urls SET status = 'failed', error_message = $2, crawled_at = NOW() WHERE url = $1",
       [url, error.message],

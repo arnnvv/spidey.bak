@@ -60,6 +60,7 @@ export default {
       );
     }
     const pool = getDatabase(env.DB);
+    const modelApiUrl = env.MODEL_API_URL;
 
     try {
       await pool.query(
@@ -67,7 +68,7 @@ export default {
         [seedUrl],
       );
 
-      ctx.waitUntil(crawl(seedUrl, pool));
+      ctx.waitUntil(crawl(seedUrl, pool, modelApiUrl));
 
       return new Response(
         JSON.stringify({
@@ -100,6 +101,7 @@ export default {
   async scheduled(_controller, env, ctx): Promise<void> {
     console.log("Cron trigger received. Looking for pending URLs...");
     const pool = getDatabase(env.DB);
+    const modelApiUrl = env.MODEL_API_URL;
     try {
       const { rows } = await pool.query<{
         url: string;
@@ -117,7 +119,7 @@ export default {
       ctx.waitUntil(
         (async () => {
           for (const row of rows) {
-            await crawl(row.url, pool);
+            await crawl(row.url, pool, modelApiUrl);
           }
         })(),
       );
